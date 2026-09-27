@@ -200,6 +200,51 @@ const route = (method, pattern, handler) => {
   routes.push({ method, regex, keys, handler });
 };
 
+// --- auth ---
+
+route('POST', '/api/register', async (req, res, { body }) => {
+  required(body, ['role', 'name', 'email', 'password']);
+  if (!['company', 'consumer'].includes(body.role)) throw new HttpError(400, 'Invalid account type');
+  const email = String(body.email).trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError(400, 'Invalid email');
+  if (String(body.password).length < 6) throw new HttpError(400, 'Password must be at least 6 characters');
+  if (db.users.some((u) => u.email === email)) throw new HttpError(409, 'Email already registered');
+
+  const { salt, hash } = hashPassword(String(body.password));
+  const user = { id: id(), role: body.role, name: String(body.name).trim(), email, salt, hash, createdAt: now() };
+  db.users.push(user);
+  return startSession(res, user);
+});
+
+route('POST', '/api/login', async (req, res, { body }) => {
+  required(body, ['email', 'password']);
+  const user = db.users.find((u) => u.email === String(body.email).trim().toLowerCase());
+  if (!user || !checkPassword(String(body.password), user)) throw new HttpError(401, 'Wrong email or password');
+  return startSession(res, user);
+});
+
+function startSession(res, user) {
+  const token = crypto.randomBytes(24).toString('hex');
+  const expiresAt = new Date(Date.now() + SESSION_DAYS * 864e5).toISOString();
+  db.sessions = db.sessions.filter((s) => s.expiresAt > now()); // drop stale ones
+  db.sessions.push({ token, userId: user.id, expiresAt });
+  saveDb();
+  send(res, 200, { user: publicUser(user) }, {
+    'Set-Cookie': `session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_DAYS * 86400}`,
+  });
+}
+
+route('POST', '/api/logout', async (req, res) => {
+  const token = parseCookies(req).session;
+  db.sessions = db.sessions.filter((s) => s.token !== token);
+  saveDb();
+  send(res, 200, { ok: true }, { 'Set-Cookie': 'session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0' });
+});
+
+route('GET', '/api/me', async (req, res, { user }) => {
+  send(res, 200, { user: user ? publicUser(user) : null });
+});
+
 // ---------- server ----------
 
 const server = http.createServer(async (req, res) => {
