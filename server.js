@@ -245,6 +245,46 @@ route('GET', '/api/me', async (req, res, { user }) => {
   send(res, 200, { user: user ? publicUser(user) : null });
 });
 
+// --- company ---
+
+route('GET', '/api/company/products', async (req, res, { user }) => {
+  requireRole(user, 'company');
+  const products = db.products
+    .filter((p) => p.companyId === user.id)
+    .map((p) => Object.assign({}, p, { units: db.units.filter((u) => u.productId === p.id).length }));
+  send(res, 200, { products });
+});
+
+route('POST', '/api/company/products', async (req, res, { user, body }) => {
+  requireRole(user, 'company');
+  required(body, ['name', 'warrantyMonths']);
+  const months = parseInt(body.warrantyMonths, 10);
+  if (!(months >= 1 && months <= 240)) throw new HttpError(400, 'Warranty must be 1 to 240 months');
+  const product = {
+    id: id(),
+    companyId: user.id,
+    name: String(body.name).trim(),
+    model: String(body.model || '').trim(),
+    warrantyMonths: months,
+    createdAt: now(),
+  };
+  db.products.push(product);
+  saveDb();
+  send(res, 201, { product });
+});
+
+route('DELETE', '/api/company/products/:id', async (req, res, { user, params }) => {
+  requireRole(user, 'company');
+  const product = db.products.find((p) => p.id === params.id && p.companyId === user.id);
+  if (!product) throw new HttpError(404, 'Product not found');
+  if (db.units.some((u) => u.productId === product.id)) {
+    throw new HttpError(409, 'This product has serial numbers registered and cannot be deleted');
+  }
+  db.products = db.products.filter((p) => p !== product);
+  saveDb();
+  send(res, 200, { ok: true });
+});
+
 // ---------- server ----------
 
 const server = http.createServer(async (req, res) => {
