@@ -285,6 +285,48 @@ route('DELETE', '/api/company/products/:id', async (req, res, { user, params }) 
   send(res, 200, { ok: true });
 });
 
+route('GET', '/api/company/units', async (req, res, { user, query }) => {
+  requireRole(user, 'company');
+  const q = normSerial(query.get('q'));
+  const productId = query.get('productId');
+  const units = db.units
+    .filter((u) => u.companyId === user.id)
+    .filter((u) => !productId || u.productId === productId)
+    .filter((u) => !q || u.serial.includes(q))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 500)
+    .map((u) => unitView(u, { withOwner: true }));
+  send(res, 200, { units });
+});
+
+// Bulk add serial numbers. Accepts { productId, serials: "A1\nA2,A3" } or an array.
+route('POST', '/api/company/units', async (req, res, { user, body }) => {
+  requireRole(user, 'company');
+  required(body, ['productId', 'serials']);
+  const product = db.products.find((p) => p.id === body.productId && p.companyId === user.id);
+  if (!product) throw new HttpError(404, 'Product not found');
+
+  const list = (Array.isArray(body.serials) ? body.serials : String(body.serials).split(/[\s,;]+/))
+    .map(normSerial)
+    .filter(Boolean);
+  if (!list.length) throw new HttpError(400, 'Enter at least one serial number');
+
+  const existing = new Set(db.units.filter((u) => u.companyId === user.id).map((u) => u.serial));
+  const added = [];
+  const skipped = [];
+  for (const serial of list) {
+    if (existing.has(serial)) {
+      skipped.push(serial);
+      continue;
+    }
+    existing.add(serial);
+    db.units.push({ id: id(), companyId: user.id, productId: product.id, serial, createdAt: now() });
+    added.push(serial);
+  }
+  saveDb();
+  send(res, 201, { added: added.length, skipped });
+});
+
 // ---------- server ----------
 
 const server = http.createServer(async (req, res) => {
