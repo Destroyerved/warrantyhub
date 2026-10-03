@@ -327,6 +327,43 @@ route('POST', '/api/company/units', async (req, res, { user, body }) => {
   send(res, 201, { added: added.length, skipped });
 });
 
+// --- consumer ---
+
+route('GET', '/api/consumer/warranties', async (req, res, { user }) => {
+  requireRole(user, 'consumer');
+  const units = db.units
+    .filter((u) => u.consumerId === user.id)
+    .sort((a, b) => b.activatedAt.localeCompare(a.activatedAt))
+    .map((u) => {
+      const view = unitView(u);
+      view.invoiceNo = u.invoiceNo || null;
+      view.openClaim = db.claims.some((c) => c.unitId === u.id && ['open', 'in_review', 'approved'].includes(c.status));
+      return view;
+    });
+  send(res, 200, { warranties: units });
+});
+
+route('POST', '/api/consumer/warranties', async (req, res, { user, body }) => {
+  requireRole(user, 'consumer');
+  required(body, ['companyId', 'serial', 'purchaseDate']);
+  if (!isValidDate(body.purchaseDate)) throw new HttpError(400, 'Invalid purchase date');
+
+  const serial = normSerial(body.serial);
+  const unit = db.units.find((u) => u.companyId === body.companyId && u.serial === serial);
+  if (!unit) throw new HttpError(404, 'This serial number is not registered by the selected brand');
+  if (unit.consumerId === user.id) throw new HttpError(409, 'You have already registered this product');
+  if (unit.consumerId) throw new HttpError(409, 'This product is already registered to another owner. Contact the brand.');
+
+  const product = db.products.find((p) => p.id === unit.productId);
+  unit.consumerId = user.id;
+  unit.purchaseDate = body.purchaseDate;
+  unit.expiresAt = addMonths(body.purchaseDate, product.warrantyMonths);
+  unit.invoiceNo = String(body.invoiceNo || '').trim();
+  unit.activatedAt = now();
+  saveDb();
+  send(res, 201, { warranty: unitView(unit) });
+});
+
 // ---------- server ----------
 
 const server = http.createServer(async (req, res) => {
