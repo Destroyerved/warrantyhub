@@ -245,6 +245,25 @@ route('GET', '/api/me', async (req, res, { user }) => {
   send(res, 200, { user: user ? publicUser(user) : null });
 });
 
+// --- public ---
+
+route('GET', '/api/companies', async (req, res) => {
+  const companies = db.users
+    .filter((u) => u.role === 'company')
+    .map((u) => ({ id: u.id, name: u.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  send(res, 200, { companies });
+});
+
+route('GET', '/api/check', async (req, res, { query }) => {
+  const serial = normSerial(query.get('serial'));
+  const companyId = query.get('companyId');
+  if (!serial || !companyId) throw new HttpError(400, 'Choose a brand and enter a serial number');
+  const unit = db.units.find((u) => u.companyId === companyId && u.serial === serial);
+  if (!unit) throw new HttpError(404, 'No product with that serial number was found for this brand');
+  send(res, 200, { unit: unitView(unit) });
+});
+
 // --- company ---
 
 route('GET', '/api/company/products', async (req, res, { user }) => {
