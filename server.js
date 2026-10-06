@@ -383,6 +383,43 @@ route('POST', '/api/consumer/warranties', async (req, res, { user, body }) => {
   send(res, 201, { warranty: unitView(unit) });
 });
 
+route('GET', '/api/consumer/claims', async (req, res, { user }) => {
+  requireRole(user, 'consumer');
+  const claims = db.claims
+    .filter((c) => c.consumerId === user.id)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map(claimView);
+  send(res, 200, { claims });
+});
+
+route('POST', '/api/consumer/claims', async (req, res, { user, body }) => {
+  requireRole(user, 'consumer');
+  required(body, ['unitId', 'issue']);
+  const unit = db.units.find((u) => u.id === body.unitId && u.consumerId === user.id);
+  if (!unit) throw new HttpError(404, 'Warranty not found');
+  if (warrantyStatus(unit) !== 'active') throw new HttpError(400, 'This warranty has expired');
+  if (db.claims.some((c) => c.unitId === unit.id && ['open', 'in_review', 'approved'].includes(c.status))) {
+    throw new HttpError(409, 'There is already an open claim for this product');
+  }
+
+  const issue = String(body.issue).trim().slice(0, 2000);
+  const claim = {
+    id: id(),
+    ref: 'CLM-' + String(db.claims.length + 1001),
+    unitId: unit.id,
+    companyId: unit.companyId,
+    consumerId: user.id,
+    issue,
+    status: 'open',
+    createdAt: now(),
+    updatedAt: now(),
+    history: [{ at: now(), by: 'consumer', status: 'open', note: issue }],
+  };
+  db.claims.push(claim);
+  saveDb();
+  send(res, 201, { claim: claimView(claim) });
+});
+
 // ---------- server ----------
 
 const server = http.createServer(async (req, res) => {
