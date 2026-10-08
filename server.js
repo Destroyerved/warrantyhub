@@ -346,6 +346,40 @@ route('POST', '/api/company/units', async (req, res, { user, body }) => {
   send(res, 201, { added: added.length, skipped });
 });
 
+route('GET', '/api/company/claims', async (req, res, { user, query }) => {
+  requireRole(user, 'company');
+  const status = query.get('status');
+  const claims = db.claims
+    .filter((c) => c.companyId === user.id)
+    .filter((c) => !status || c.status === status)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map(claimView);
+  send(res, 200, { claims });
+});
+
+const CLAIM_FLOW = {
+  open: ['in_review', 'rejected'],
+  in_review: ['approved', 'rejected'],
+  approved: ['resolved'],
+  rejected: [],
+  resolved: [],
+};
+
+route('POST', '/api/company/claims/:id', async (req, res, { user, params, body }) => {
+  requireRole(user, 'company');
+  required(body, ['status']);
+  const claim = db.claims.find((c) => c.id === params.id && c.companyId === user.id);
+  if (!claim) throw new HttpError(404, 'Claim not found');
+  if (!CLAIM_FLOW[claim.status].includes(body.status)) {
+    throw new HttpError(400, `Cannot move a claim from "${claim.status}" to "${body.status}"`);
+  }
+  claim.status = body.status;
+  claim.updatedAt = now();
+  claim.history.push({ at: now(), by: 'company', status: body.status, note: String(body.note || '').trim() });
+  saveDb();
+  send(res, 200, { claim: claimView(claim) });
+});
+
 // --- consumer ---
 
 route('GET', '/api/consumer/warranties', async (req, res, { user }) => {
