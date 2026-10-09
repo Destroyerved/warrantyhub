@@ -266,6 +266,20 @@ route('GET', '/api/check', async (req, res, { query }) => {
 
 // --- company ---
 
+route('GET', '/api/company/stats', async (req, res, { user }) => {
+  requireRole(user, 'company');
+  const units = db.units.filter((u) => u.companyId === user.id);
+  const claims = db.claims.filter((c) => c.companyId === user.id);
+  send(res, 200, {
+    products: db.products.filter((p) => p.companyId === user.id).length,
+    units: units.length,
+    activated: units.filter((u) => u.activatedAt).length,
+    active: units.filter((u) => warrantyStatus(u) === 'active').length,
+    openClaims: claims.filter((c) => ['open', 'in_review', 'approved'].includes(c.status)).length,
+    totalClaims: claims.length,
+  });
+});
+
 route('GET', '/api/company/products', async (req, res, { user }) => {
   requireRole(user, 'company');
   const products = db.products
