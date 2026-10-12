@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WarrantyHub — every warranty in one place</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="logo" href="/"><span class="logo-mark">W</span> WarrantyHub</a>
+      <div class="topbar-right">
+        <a id="dashLink" class="btn hidden" href="#">Go to dashboard</a>
+        <a id="loginLink" class="btn secondary" href="#account">Log in</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero hero-grid">
+      <div>
+        <h1>Every product warranty, in one central place.</h1>
+        <p class="lead">
+          Brands register their products and serial numbers. Customers activate warranties,
+          see exactly how much cover is left, and raise claims — all tracked in one place.
+        </p>
+        <div class="grid grid-2" style="margin-top:24px">
+          <div>
+            <h3>For companies</h3>
+            <ul class="feature-list">
+              <li>Add products and warranty periods</li>
+              <li>Upload serial numbers in bulk</li>
+              <li>See who owns what and when cover ends</li>
+              <li>Review and resolve claims</li>
+            </ul>
+          </div>
+          <div>
+            <h3>For consumers</h3>
+            <ul class="feature-list">
+              <li>Activate a warranty with the serial number</li>
+              <li>All your products in one list</li>
+              <li>Countdown to expiry</li>
+              <li>File and track claims online</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Check a warranty</h2>
+        <p class="muted small">No account needed. Find the serial number on the product label or box.</p>
+        <form id="checkForm">
+          <div class="field">
+            <label for="checkCompany">Brand</label>
+            <select id="checkCompany" name="companyId" required></select>
+          </div>
+          <div class="field">
+            <label for="checkSerial">Serial number</label>
+            <input id="checkSerial" name="serial" placeholder="e.g. TV55-0001" required>
+          </div>
+          <button class="btn block" type="submit">Check status</button>
+        </form>
+        <div id="checkResult" class="result"></div>
+      </div>
+    </section>
+
+    <section id="account" class="card" style="max-width:460px;margin:24px auto 0">
+      <div class="segmented" role="tablist">
+        <label><input type="radio" name="mode" value="login" checked><span>Log in</span></label>
+        <label><input type="radio" name="mode" value="register"><span>Create account</span></label>
+      </div>
+
+      <form id="loginForm">
+        <div class="field">
+          <label for="loginEmail">Email</label>
+          <input id="loginEmail" name="email" type="email" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="loginPassword">Password</label>
+          <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <button class="btn block" type="submit">Log in</button>
+      </form>
+
+      <form id="registerForm" class="hidden">
+        <div class="field">
+          <label>I am a</label>
+          <div class="segmented" style="margin:0">
+            <label><input type="radio" name="role" value="consumer" checked><span>Consumer</span></label>
+            <label><input type="radio" name="role" value="company"><span>Company</span></label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="regName" id="regNameLabel">Full name</label>
+          <input id="regName" name="name" required>
+        </div>
+        <div class="field">
+          <label for="regEmail">Email</label>
+          <input id="regEmail" name="email" type="email" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="regPassword">Password <span class="hint">(min 6 characters)</span></label>
+          <input id="regPassword" name="password" type="password" minlength="6" autocomplete="new-password" required>
+        </div>
+        <button class="btn block" type="submit">Create account</button>
+      </form>
+    </section>
+  </main>
+
+  <footer>WarrantyHub · Simple central warranty registry</footer>
+
+  <script src="/common.js"></script>
+  <script>
+    const dashboardFor = (user) => (user.role === 'company' ? '/company.html' : '/consumer.html');
+
+    // Already logged in? Offer a shortcut to the dashboard.
+    api('/api/me').then(({ user }) => {
+      if (!user) return;
+      const link = document.getElementById('dashLink');
+      link.href = dashboardFor(user);
+      link.classList.remove('hidden');
+      document.getElementById('loginLink').classList.add('hidden');
+    });
+
+    loadCompanyOptions(document.getElementById('checkCompany'));
+
+    onSubmit(document.getElementById('checkForm'), async (data) => {
+      const out = document.getElementById('checkResult');
+      try {
+        const { unit } = await api('/api/check?' + new URLSearchParams(data));
+        out.innerHTML = `
+          <div class="row between">
+            <strong>${esc(unit.productName)} ${unit.productModel ? '<span class="muted">· ' + esc(unit.productModel) + '</span>' : ''}</strong>
+            ${badge(unit.status)}
+          </div>
+          <dl class="w-meta">
+            <dt>Brand</dt><dd>${esc(unit.companyName)}</dd>
+            <dt>Serial</dt><dd class="mono">${esc(unit.serial)}</dd>
+            <dt>Warranty period</dt><dd>${unit.warrantyMonths} months</dd>
+            <dt>Purchased</dt><dd>${fmtDate(unit.purchaseDate)}</dd>
+            <dt>Valid until</dt><dd>${fmtDate(unit.expiresAt)}</dd>
+          </dl>
+          ${unit.status === 'not_registered'
+            ? '<p class="small muted" style="margin-top:12px">This product has not been activated yet. Create a consumer account to register it.</p>'
+            : '<div style="margin-top:12px">' + coverageBar(unit) + '</div>'}`;
+      } catch (err) {
+        out.innerHTML = `<div class="alert error">${esc(err.message)}</div>`;
+      }
+    });
+
+    // Log in / Create account toggle
+    document.querySelectorAll('input[name=mode]').forEach((r) =>
+      r.addEventListener('change', () => {
+        const register = r.value === 'register' && r.checked;
+        document.getElementById('loginForm').classList.toggle('hidden', register);
+        document.getElementById('registerForm').classList.toggle('hidden', !register);
+      })
+    );
+    document.querySelectorAll('input[name=role]').forEach((r) =>
+      r.addEventListener('change', () => {
+        document.getElementById('regNameLabel').textContent = r.value === 'company' ? 'Company name' : 'Full name';
+      })
+    );
+
+    onSubmit(document.getElementById('loginForm'), async (data) => {
+      const { user } = await api('/api/login', { method: 'POST', body: data, allow401: true });
+      location.href = dashboardFor(user);
+    });
+
+    onSubmit(document.getElementById('registerForm'), async (data) => {
+      const { user } = await api('/api/register', { method: 'POST', body: data });
+      location.href = dashboardFor(user);
+    });
+  </script>
+</body>
+</html>
