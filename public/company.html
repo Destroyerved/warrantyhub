@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Company dashboard — WarrantyHub</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="logo" href="/"><span class="logo-mark">W</span> WarrantyHub</a>
+      <div class="topbar-right">
+        <span class="muted" data-user-name></span>
+        <button class="btn secondary small" onclick="logout()">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <nav class="tabs">
+      <a href="#overview">Overview</a>
+      <a href="#products">Products</a>
+      <a href="#serials">Serial numbers</a>
+      <a href="#claims">Claims</a>
+    </nav>
+
+    <!-- Overview -->
+    <section data-tab="overview">
+      <div class="grid grid-4" id="stats"></div>
+      <div class="card" style="margin-top:16px">
+        <div class="row between">
+          <h2 style="margin:0">Claims needing attention</h2>
+          <a href="#claims">View all claims →</a>
+        </div>
+        <div id="recentClaims" style="margin-top:12px"></div>
+      </div>
+    </section>
+
+    <!-- Products -->
+    <section data-tab="products" class="hidden">
+      <div class="card">
+        <h2>Add a product</h2>
+        <form id="productForm" class="grid grid-4" style="align-items:end">
+          <div class="field" style="margin:0">
+            <label for="pName">Product name</label>
+            <input id="pName" name="name" placeholder="Smart TV 55&quot;" required>
+          </div>
+          <div class="field" style="margin:0">
+            <label for="pModel">Model <span class="hint">(optional)</span></label>
+            <input id="pModel" name="model" placeholder="AX-55U">
+          </div>
+          <div class="field" style="margin:0">
+            <label for="pMonths">Warranty (months)</label>
+            <input id="pMonths" name="warrantyMonths" type="number" min="1" max="240" value="12" required>
+          </div>
+          <button class="btn" type="submit">Add product</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Your products</h2>
+        <div class="table-wrap" id="productTable"></div>
+      </div>
+    </section>
+
+    <!-- Serial numbers -->
+    <section data-tab="serials" class="hidden">
+      <div class="card">
+        <h2>Register serial numbers</h2>
+        <p class="muted small">Every unit you sell needs its serial number here so customers can activate the warranty. Paste one per line, or separate with commas.</p>
+        <form id="serialForm">
+          <div class="grid grid-2">
+            <div class="field">
+              <label for="sProduct">Product</label>
+              <select id="sProduct" name="productId" class="product-select" required></select>
+            </div>
+            <div></div>
+          </div>
+          <div class="field">
+            <label for="sSerials">Serial numbers</label>
+            <textarea id="sSerials" name="serials" placeholder="TV55-0101&#10;TV55-0102&#10;TV55-0103" required></textarea>
+          </div>
+          <button class="btn" type="submit">Register serials</button>
+        </form>
+      </div>
+      <div class="card">
+        <div class="row between" style="margin-bottom:12px">
+          <h2 style="margin:0">Registered units</h2>
+          <div class="row">
+            <select id="unitProductFilter" class="product-select" style="width:auto"></select>
+            <input id="unitSearch" placeholder="Search serial…" style="width:180px">
+          </div>
+        </div>
+        <div class="table-wrap" id="unitTable"></div>
+      </div>
+    </section>
+
+    <!-- Claims -->
+    <section data-tab="claims" class="hidden">
+      <div class="row between" style="margin-bottom:16px">
+        <h2 style="margin:0">Warranty claims</h2>
+        <select id="claimFilter" style="width:auto">
+          <option value="">All statuses</option>
+          <option value="open">Open</option>
+          <option value="in_review">In review</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="resolved">Resolved</option>
+        </select>
+      </div>
+      <div id="claimList"></div>
+    </section>
+  </main>
+
+  <script src="/common.js"></script>
+  <script src="/company.js"></script>
+</body>
+</html>
