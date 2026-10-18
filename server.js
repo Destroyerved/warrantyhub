@@ -51,7 +51,10 @@ function checkPassword(password, user) {
 
 function addMonths(dateStr, months) {
   const d = new Date(dateStr + 'T00:00:00Z');
+  const day = d.getUTCDate();
   d.setUTCMonth(d.getUTCMonth() + months);
+  // e.g. Jan 31 + 1 month should land on Feb 28/29, not Mar 3
+  if (d.getUTCDate() !== day) d.setUTCDate(0);
   return d.toISOString().slice(0, 10);
 }
 
