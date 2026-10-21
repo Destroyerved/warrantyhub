@@ -83,6 +83,9 @@ main.wrap { padding-top: 24px; padding-bottom: 48px; }
 .grid-2 { grid-template-columns: repeat(2, 1fr); }
 .grid-3 { grid-template-columns: repeat(3, 1fr); }
 .grid-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 800px) {
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+}
 
 .card {
   background: var(--surface);
@@ -250,6 +253,10 @@ td.mono, .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
 .hero h1 { font-size: 38px; letter-spacing: -0.02em; }
 .hero p.lead { font-size: 17px; color: var(--muted); max-width: 520px; }
 .hero-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 32px; align-items: start; }
+@media (max-width: 800px) {
+  .hero-grid { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 30px; }
+}
 .feature-list { list-style: none; padding: 0; margin: 0; }
 .feature-list li { padding: 6px 0 6px 26px; position: relative; }
 .feature-list li::before { content: "✓"; position: absolute; left: 0; color: var(--green); font-weight: 700; }
