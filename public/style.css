@@ -175,6 +175,7 @@ textarea { resize: vertical; min-height: 90px; }
   border-bottom: 1px solid var(--border);
   margin-bottom: 24px;
   overflow-x: auto;
+  overflow-y: hidden;
 }
 .tabs a {
   padding: 10px 14px;
