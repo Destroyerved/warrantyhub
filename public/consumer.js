@@ -96,6 +96,7 @@ onSubmit(document.getElementById('claimForm'), async (data, form) => {
 // ---------- start ----------
 
 requireLogin('consumer').then(async () => {
+  document.getElementById('rDate').max = todayStr();
   await Promise.all([loadCompanyOptions(document.getElementById('rCompany')), loadWarranties()]);
   setupTabs((tab) => {
     if (tab === 'warranties') loadWarranties();

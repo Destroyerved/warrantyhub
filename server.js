@@ -417,6 +417,7 @@ route('POST', '/api/consumer/warranties', async (req, res, { user, body }) => {
   requireRole(user, 'consumer');
   required(body, ['companyId', 'serial', 'purchaseDate']);
   if (!isValidDate(body.purchaseDate)) throw new HttpError(400, 'Invalid purchase date');
+  if (body.purchaseDate > today()) throw new HttpError(400, 'Purchase date cannot be in the future');
 
   const serial = normSerial(body.serial);
   const unit = db.units.find((u) => u.companyId === body.companyId && u.serial === serial);
